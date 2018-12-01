@@ -1,6 +1,10 @@
+apply plugin: 'com.novoda.bintray-release'
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-android'
+
+def properties = new Properties()
+properties.load(project.rootProject.file('local.properties').newDataInputStream())
 
 android {
     compileSdkVersion 28
@@ -22,6 +26,19 @@ android {
     }
 
 }
+
+publish {
+    bintrayUser = properties.getProperty("bintray.user")
+    bintrayKey = properties.getProperty("bintray.apikey")
+    userOrg = 'featzima'
+    repoName = 'komedia'
+    groupId = 'com.featzima'
+    artifactId = 'komedia'
+    publishVersion = '0.1.0'
+    desc = 'KoMedia is a DSL wrapper for the standard Android media tools.'
+    website = 'https://github.com/featzima/komedia'
+}
+
 
 dependencies {
     api "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
