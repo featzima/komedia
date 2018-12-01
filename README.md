@@ -13,15 +13,25 @@ The library uses experimental Kotlin channels and is based on three Android comp
 
 Download via Gradle:
 
-```gradle
+add to the root build.gradle
+```groovy
+allprojects {
+    repositories {
+        maven { url 'http://dl.bintray.com/featzima/komedia' }
+    }
+}
+```
+
+add to the module build.gradle
+```groovy
 implementation 'com.featzima:komedia:0.1.0'
 ```
 
 ## How To Use
-1. Create pipeline with simple DSL and invoke it:
+1. You can easily convert MP3 file to AAC file. Just create a pipeline with simple DSL and invoke it:
 ```kotlin
 val sampleFile = File(appContext.cacheDir, "input.mp3")
-val resultFile = File(appContext.cacheDir, "output.mp3")
+val resultFile = File(appContext.cacheDir, "output.aac")
 
 val converterPipeline = pipeline {
     extract {
