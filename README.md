@@ -24,7 +24,7 @@ allprojects {
 
 add to the module build.gradle
 ```groovy
-implementation 'com.featzima:komedia:0.1.0'
+implementation 'com.featzima:komedia:0.1.2'
 ```
 
 ## How To Use

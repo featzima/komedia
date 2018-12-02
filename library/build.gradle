@@ -32,7 +32,7 @@ publish {
     repoName = 'komedia'
     groupId = 'com.featzima'
     artifactId = 'komedia'
-    publishVersion = '0.1.1'
+    publishVersion = '0.1.2'
     desc = 'KoMedia is a DSL wrapper for the standard Android media tools.'
     website = 'https://github.com/featzima/komedia'
 }
