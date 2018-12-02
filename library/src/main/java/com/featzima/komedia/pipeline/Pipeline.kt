@@ -8,7 +8,6 @@ import android.util.Log
 import com.featzima.komedia.CodecEvent
 import com.featzima.komedia.channel
 import com.featzima.komedia.input
-import com.featzima.komedia.input2
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.consume
 import kotlinx.coroutines.channels.consumeEach
@@ -68,7 +67,7 @@ class Pipeline : CoroutineScope {
                     })
                 }
                 is CodecEvent.Data -> {
-                    destination.decoderChannel.value.input2(event)
+                    destination.decoderChannel.value.input(event)
                 }
             }
         }

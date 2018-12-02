@@ -8,9 +8,7 @@ import com.featzima.komedia.dsl.pipeline
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.*
-import java.nio.ByteBuffer
-import kotlin.experimental.and
+import java.io.File
 
 
 @RunWith(AndroidJUnit4::class)
@@ -19,7 +17,7 @@ class SimplePipelineTest {
     fun useAppContext() {
         val appContext = InstrumentationRegistry.getTargetContext()
         val sampleFile = File(appContext.cacheDir, "input.mp3")
-        appContext.assets.open("Metallica.mp3").use { inputStream ->
+        appContext.assets.open("Bloch_Prayer.mp3").use { inputStream ->
             sampleFile.outputStream().use { outputStream ->
                 inputStream.copyTo(outputStream)
             }
