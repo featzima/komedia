@@ -1,15 +1,15 @@
 package com.featzima.komedia.dsl
 
-import android.media.MediaFormat
 import com.featzima.komedia.pipeline.PipelineElement
 
 class EncodeDsl {
-    val mediaFormat = MediaFormat()
+    var mediaFormatProperties: Map<String, Any>? = null
+
     val element: PipelineElement.Encoder by lazy {
-        PipelineElement.Encoder(mediaFormat)
+        PipelineElement.Encoder(mediaFormatProperties!!)
     }
 
-    fun mediaFormat(block: MediaFormat.() -> Unit) {
-        mediaFormat.apply(block)
+    fun mediaFormat(block: MediaFormatDsl.() -> Unit) {
+        mediaFormatProperties = MediaFormatDsl().apply(block).properties
     }
 }

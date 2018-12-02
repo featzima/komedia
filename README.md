@@ -40,8 +40,9 @@ val converterPipeline = pipeline {
     decode {}
     encode {
         mediaFormat {
-            setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_AUDIO_AAC)
-            setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectHE)
+            property { MediaFormat.KEY_BIT_RATE to 128000 }
+            property { MediaFormat.KEY_MIME to MediaFormat.MIMETYPE_AUDIO_AAC }
+            property { MediaFormat.KEY_AAC_PROFILE to MediaCodecInfo.CodecProfileLevel.AACObjectLC }
         }
     }
     mux {

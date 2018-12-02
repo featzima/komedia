@@ -17,7 +17,7 @@ sealed class PipelineElement {
         var decoderChannel = ConflatedBroadcastChannel<MediaCodec>()
     }
 
-    class Encoder(val mediaFormat: MediaFormat) : PipelineElement() {
+    class Encoder(val mediaFormatProperties: Map<String, Any>) : PipelineElement() {
         var encoderChannel = ConflatedBroadcastChannel<MediaCodec>()
     }
 

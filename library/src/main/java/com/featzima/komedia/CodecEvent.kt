@@ -13,5 +13,9 @@ sealed class CodecEvent {
     data class Data(
         val buffer: ByteBuffer,
         val bufferInfo: MediaCodec.BufferInfo
-    ) : CodecEvent()
+    ) : CodecEvent() {
+        override fun toString(): String {
+            return "$buffer, bufferInfo.presentationTimeUs=${bufferInfo.presentationTimeUs}, bufferInfo.flags=${bufferInfo.flags}"
+        }
+    }
 }

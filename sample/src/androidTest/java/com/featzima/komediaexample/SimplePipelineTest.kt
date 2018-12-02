@@ -17,7 +17,7 @@ class SimplePipelineTest {
     fun useAppContext() {
         val appContext = InstrumentationRegistry.getTargetContext()
         val sampleFile = File(appContext.cacheDir, "input.mp3")
-        appContext.assets.open("Bloch_Prayer.mp3").use { inputStream ->
+        appContext.assets.open("Beethoven_12_Variation.mp3").use { inputStream ->
             sampleFile.outputStream().use { outputStream ->
                 inputStream.copyTo(outputStream)
             }
@@ -33,8 +33,9 @@ class SimplePipelineTest {
                 decode {}
                 encode {
                     mediaFormat {
-                        setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_AUDIO_AAC)
-                        setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectHE)
+                        property { MediaFormat.KEY_BIT_RATE to 128000 }
+                        property { MediaFormat.KEY_MIME to MediaFormat.MIMETYPE_AUDIO_AAC }
+                        property { MediaFormat.KEY_AAC_PROFILE to MediaCodecInfo.CodecProfileLevel.AACObjectLC }
                     }
                 }
                 mux {

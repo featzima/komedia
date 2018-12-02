@@ -3,6 +3,7 @@ package com.featzima.komedia.pipeline
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
+import android.media.MediaFormat.*
 import android.media.MediaMuxer
 import android.util.Log
 import com.featzima.komedia.CodecEvent
@@ -12,6 +13,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.consume
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.first
+import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
 
 class Pipeline : CoroutineScope {
@@ -77,21 +79,29 @@ class Pipeline : CoroutineScope {
     private suspend fun connect(source: PipelineElement.Decoder, destination: PipelineElement.Encoder) {
         val decoder = source.decoderChannel.consume { first() }
         decoder.channel().consumeEach { event ->
-            if (destination.encoderChannel.valueOrNull == null) {
-                val outputMediaFormat = MediaFormat().apply {
-                    setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_AUDIO_AAC)
-                    setInteger(MediaFormat.KEY_CHANNEL_COUNT, 2)
-                    setInteger(MediaFormat.KEY_SAMPLE_RATE, 44100) // 11025
-                    setInteger(MediaFormat.KEY_BIT_RATE, 128000)
-                    setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectHE)
+            when (event) {
+                is CodecEvent.Format -> {
+                    val outputMediaFormat = event.mediaFormat.apply {
+                        destination.mediaFormatProperties.forEach { key, value ->
+                            when (value) {
+                                is String -> setString(key, value)
+                                is Int -> setInteger(key, value)
+                                is Long -> setLong(key, value)
+                                is ByteBuffer -> setByteBuffer(key, value)
+                                is Float -> setFloat(key, value)
+                                else -> throw IllegalStateException("Unsupported media format property type")
+                            }
+                        }
+                    }
+                    val encoder = MediaCodec.createEncoderByType(outputMediaFormat.getString(KEY_MIME))
+                    encoder.configure(outputMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                    encoder.start()
+                    destination.encoderChannel.send(encoder)
                 }
-                val encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
-                encoder.configure(outputMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-                encoder.start()
-                destination.encoderChannel.offer(encoder)
-            }
-            destination.encoderChannel.value.let { encoder ->
-                encoder.input(event)
+                is CodecEvent.Data -> {
+                    val encoder = destination.encoderChannel.consume { first() }
+                    encoder.input(event)
+                }
             }
         }
         Log.e("komedia", "decoder::complete")
@@ -99,15 +109,19 @@ class Pipeline : CoroutineScope {
 
     private suspend fun connect(source: PipelineElement.Encoder, destination: PipelineElement.Muxer) {
         val encoder = source.encoderChannel.consume { first() }
-        encoder.channel().consumeEach {
-            if (destination.muxurChannel.valueOrNull == null) {
-                val muxer =
-                    MediaMuxer(destination.outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-                muxer.addTrack(encoder.outputFormat)
-                muxer.start()
-                destination.muxurChannel.offer(muxer)
+        encoder.channel().consumeEach {event ->
+            when (event) {
+                is CodecEvent.Format -> {
+                    val muxer = MediaMuxer(destination.outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+                    muxer.addTrack(event.mediaFormat)
+                    muxer.start()
+                    destination.muxurChannel.offer(muxer)
+                }
+                is CodecEvent.Data -> {
+                    val muxer = destination.muxurChannel.value
+                    muxer.input(event)
+                }
             }
-            destination.muxurChannel.value.input(it)
         }
         Log.e("komedia", "encoder::complete")
         destination.muxurChannel.value.stop()
