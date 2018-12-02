@@ -12,8 +12,6 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 1
-        versionName "1.0"
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
@@ -34,7 +32,7 @@ publish {
     repoName = 'komedia'
     groupId = 'com.featzima'
     artifactId = 'komedia'
-    publishVersion = '0.1.0'
+    publishVersion = '0.1.1'
     desc = 'KoMedia is a DSL wrapper for the standard Android media tools.'
     website = 'https://github.com/featzima/komedia'
 }
@@ -44,7 +42,4 @@ dependencies {
     api "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     api "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.0.1"
     api "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.0.1"
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'com.android.support.test:runner:1.0.2'
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 }

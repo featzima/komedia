@@ -7,10 +7,14 @@ import android.util.Log
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
-import java.io.*
 import java.nio.ByteBuffer
 import kotlin.coroutines.coroutineContext
-import kotlin.experimental.and
+
+fun <A, B> Pair<A, B>.swiped() = Pair(first = second, second = first)
+
+infix fun Int.hasFlag(flag: Int) = this.and(flag) == flag
+
+infix fun Int.hasNotFlag(flag: Int) = this.and(flag) == 0
 
 fun ByteBuffer.transferToAsMuchAsPossible(destinationBuffer: ByteBuffer): Int {
     val nTransfer = Math.min(destinationBuffer.remaining(), remaining())
@@ -26,6 +30,15 @@ fun ByteBuffer.exactlyCopy(): ByteBuffer {
     copy.put(this)
     copy.position(0)
     return copy
+}
+
+fun MediaCodec.awaitInputBuffer(): Pair<Int, ByteBuffer> {
+    while (true) {
+        val inputBufferId = dequeueInputBuffer(3000)
+        if (inputBufferId >= 0) {
+            return Pair(inputBufferId, getInputBuffer(inputBufferId))
+        }
+    }
 }
 
 suspend fun MediaExtractor.channel(
@@ -47,8 +60,9 @@ suspend fun MediaExtractor.channel(
             val bufferInfo = MediaCodec.BufferInfo()
             bufferInfo.flags = 0
             bufferInfo.presentationTimeUs = sampleTime
-            send(CodecEvent.Data(buffersPair.first, bufferInfo))
-            Log.e("komedia", "extractor.send($bufferInfo)")
+            val event = CodecEvent.Data(buffersPair.first, bufferInfo)
+            send(event)
+            Log.e("komedia", "extractor.send($event)")
             buffersPair = buffersPair.swiped()
             advance()
         }
@@ -61,44 +75,18 @@ suspend fun MediaExtractor.channel(
     }
 }
 
-fun <A, B> Pair<A, B>.swiped() = Pair(first = second, second = first)
-
-fun MediaCodec.input2(event: CodecEvent.Data) {
-    Log.e("komedia", "extractor -> decoder $event")
-    val presentationTimeUs = event.bufferInfo.presentationTimeUs
-    val buffer = event.buffer
-    while (true) {
-        val inputBufferId = dequeueInputBuffer(3000)
-        if (inputBufferId >= 0) {
-            val inputBuffer = getInputBuffer(inputBufferId)
-            inputBuffer.put(buffer)
-            inputBuffer.position(0)
-            inputBuffer.limit(buffer.limit())
-            val flags = if (buffer.limit() == 0) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0
-            queueInputBuffer(inputBufferId, 0, buffer.limit(), presentationTimeUs, flags)
-            return
-        }
-    }
-}
-
 fun MediaCodec.input(event: CodecEvent.Data) {
     Log.e("komedia", "decoder -> encoder $event")
     val bufferInfo = event.bufferInfo
     val buffer = event.buffer
-    while (true) {
-        val inputBufferId = dequeueInputBuffer(3000)
-        if (inputBufferId >= 0) {
-            val inputBuffer = getInputBuffer(inputBufferId)
-            buffer.transferToAsMuchAsPossible(inputBuffer)
-            queueInputBuffer(
-                inputBufferId,
-                0,
-                inputBuffer.position(),
-                bufferInfo.presentationTimeUs,
-                bufferInfo.flags
-            )
-            if (buffer.remaining() == 0) return
-        }
+    while (buffer.remaining() > 0) {
+        val (inputBufferId, inputBuffer) = awaitInputBuffer()
+        buffer.transferToAsMuchAsPossible(inputBuffer)
+        queueInputBuffer(inputBufferId, 0, inputBuffer.position(), bufferInfo.presentationTimeUs, bufferInfo.flags)
+    }
+    if (bufferInfo.flags hasFlag MediaCodec.BUFFER_FLAG_END_OF_STREAM) {
+        val (inputBufferId, _) = awaitInputBuffer()
+        queueInputBuffer(inputBufferId, 0, 0, bufferInfo.presentationTimeUs, bufferInfo.flags)
     }
 }
 
@@ -106,26 +94,29 @@ fun MediaMuxer.input(event: CodecEvent.Data) {
     Log.e("komedia", "encoder -> muxer $event")
     val buffer = event.buffer
     val bufferInfo = event.bufferInfo
-    if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM == 0) {
+    if (bufferInfo.flags hasNotFlag MediaCodec.BUFFER_FLAG_END_OF_STREAM) {
         writeSampleData(0, buffer, bufferInfo)
     }
 }
 
-suspend fun MediaCodec.channel(timeoutUs: Long = 3000): ReceiveChannel<CodecEvent.Data> {
+suspend fun MediaCodec.channel(timeoutUs: Long = 3000): ReceiveChannel<CodecEvent> {
     return GlobalScope.produce(context = coroutineContext) {
         while (true) {
             val bufferInfo = MediaCodec.BufferInfo()
             val outputBufferId = dequeueOutputBuffer(bufferInfo, timeoutUs)
             if (outputBufferId >= 0) {
                 val outputBuffer = getOutputBuffer(outputBufferId)
-                if (bufferInfo.flags == MediaCodec.BUFFER_FLAG_CODEC_CONFIG) {
+                if (bufferInfo.flags hasFlag MediaCodec.BUFFER_FLAG_CODEC_CONFIG) {
                     bufferInfo.size = 0
                 }
 
                 send(CodecEvent.Data(outputBuffer.exactlyCopy(), bufferInfo))
                 releaseOutputBuffer(outputBufferId, false)
             }
-            if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM > 0) {
+            if (outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                send(CodecEvent.Format(outputFormat))
+            }
+            if (bufferInfo.flags hasFlag MediaCodec.BUFFER_FLAG_END_OF_STREAM) {
                 break
             }
         }

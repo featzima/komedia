@@ -8,9 +8,7 @@ import com.featzima.komedia.dsl.pipeline
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.*
-import java.nio.ByteBuffer
-import kotlin.experimental.and
+import java.io.File
 
 
 @RunWith(AndroidJUnit4::class)
@@ -19,7 +17,7 @@ class SimplePipelineTest {
     fun useAppContext() {
         val appContext = InstrumentationRegistry.getTargetContext()
         val sampleFile = File(appContext.cacheDir, "input.mp3")
-        appContext.assets.open("Metallica.mp3").use { inputStream ->
+        appContext.assets.open("Beethoven_12_Variation.mp3").use { inputStream ->
             sampleFile.outputStream().use { outputStream ->
                 inputStream.copyTo(outputStream)
             }
@@ -35,8 +33,9 @@ class SimplePipelineTest {
                 decode {}
                 encode {
                     mediaFormat {
-                        setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_AUDIO_AAC)
-                        setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectHE)
+                        property { MediaFormat.KEY_BIT_RATE to 128000 }
+                        property { MediaFormat.KEY_MIME to MediaFormat.MIMETYPE_AUDIO_AAC }
+                        property { MediaFormat.KEY_AAC_PROFILE to MediaCodecInfo.CodecProfileLevel.AACObjectLC }
                     }
                 }
                 mux {
