@@ -32,6 +32,15 @@ fun ByteBuffer.exactlyCopy(): ByteBuffer {
     return copy
 }
 
+fun MediaCodec.awaitInputBuffer(): Pair<Int, ByteBuffer> {
+    while (true) {
+        val inputBufferId = dequeueInputBuffer(3000)
+        if (inputBufferId >= 0) {
+            return Pair(inputBufferId, getInputBuffer(inputBufferId))
+        }
+    }
+}
+
 suspend fun MediaExtractor.channel(
     capacity: Int = 16384,
     trackIndex: Int = 0,
@@ -70,21 +79,13 @@ fun MediaCodec.input(event: CodecEvent.Data) {
     val bufferInfo = event.bufferInfo
     val buffer = event.buffer
     while (buffer.remaining() > 0) {
-        val inputBufferId = dequeueInputBuffer(3000)
-        if (inputBufferId >= 0) {
-            val inputBuffer = getInputBuffer(inputBufferId)
-            buffer.transferToAsMuchAsPossible(inputBuffer)
-            queueInputBuffer(inputBufferId, 0, inputBuffer.position(), bufferInfo.presentationTimeUs, bufferInfo.flags)
-        }
+        val (inputBufferId, inputBuffer) = awaitInputBuffer()
+        buffer.transferToAsMuchAsPossible(inputBuffer)
+        queueInputBuffer(inputBufferId, 0, inputBuffer.position(), bufferInfo.presentationTimeUs, bufferInfo.flags)
     }
     if (bufferInfo.flags hasFlag MediaCodec.BUFFER_FLAG_END_OF_STREAM) {
-        while (true) {
-            val inputBufferId = dequeueInputBuffer(3000)
-            if (inputBufferId >= 0) {
-                queueInputBuffer(inputBufferId, 0, 0, bufferInfo.presentationTimeUs, bufferInfo.flags)
-                break
-            }
-        }
+        val (inputBufferId, _) = awaitInputBuffer()
+        queueInputBuffer(inputBufferId, 0, 0, bufferInfo.presentationTimeUs, bufferInfo.flags)
     }
 }
 
@@ -104,7 +105,7 @@ suspend fun MediaCodec.channel(timeoutUs: Long = 3000): ReceiveChannel<CodecEven
             val outputBufferId = dequeueOutputBuffer(bufferInfo, timeoutUs)
             if (outputBufferId >= 0) {
                 val outputBuffer = getOutputBuffer(outputBufferId)
-                if (bufferInfo.flags == MediaCodec.BUFFER_FLAG_CODEC_CONFIG) {
+                if (bufferInfo.flags hasFlag MediaCodec.BUFFER_FLAG_CODEC_CONFIG) {
                     bufferInfo.size = 0
                 }
 
